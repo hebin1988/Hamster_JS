@@ -1,0 +1,118 @@
+// name: Bing搜索.js
+// date: 2024-11-07
+// author: jw
+// desc: 使用 Bing Web Search API 获取搜索结果
+ 
+// 配置你的 Bing API Key
+const BING_API_KEY = $bingToken; // 替换为完整的 API Key
+ 
+// 搜索查询
+const SEARCH_QUERY = $searchText || "AI"; // 提供默认搜索词
+ 
+// 缓存控制 (针对每个搜索词单独缓存)
+const cache = {
+    data: {},
+    timestamp: {},
+    ttl: 5 * 60 * 1000  // 5分钟缓存
+};
+ 
+// 从Bing获取搜索结果
+async function getBingResults() {
+    try {
+        const response = await $http({
+            url: `https://api.bing.microsoft.com/v7.0/search?q=${encodeURIComponent(SEARCH_QUERY)}&count=50&mkt=zh-CN&responseFilter=Webpages`,
+            method: 'GET',
+            header: {
+                'Ocp-Apim-Subscription-Key': BING_API_KEY,
+                'Accept': 'application/json'
+            },
+            timeout: 10
+        });
+ 
+        let data = JSON.parse(response.data);
+        if (!data?.webPages?.value) {
+            $log("无效的 Bing API 响应");
+            return [];
+        }
+ 
+        return data.webPages.value
+            .filter(item => item.name && item.snippet)
+            .map(item => ({
+                title: item.name,
+                snippet: item.snippet,
+                url: item.url
+            }));
+ 
+    } catch (error) {
+        $log("Bing API 请求失败: " + error);
+        return [];
+    }
+}
+ 
+// 结果去重
+function removeDuplicates(results) {
+    const seen = new Set();
+    return results.filter(result => {
+        const normalized = result.title
+            .toLowerCase()
+            .replace(/[^a-z0-9\u4e00-\u9fa5]/g, '');
+        if (seen.has(normalized)) return false;
+        seen.add(normalized);
+        return true;
+    });
+}
+ 
+// 格式化展示内容
+function formatResult(result) {
+    // 移除URL中的协议部分
+    const cleanUrl = result.url.replace(/^https?:\/\//, '');
+    // 截取适当长度的URL
+    const shortUrl = cleanUrl.length > 40 ? cleanUrl.substring(0, 40) + '...' : cleanUrl;
+    
+    // 返回格式化的结果
+    return `${result.title}\n${result.snippet}\n${shortUrl}\n`;
+}
+ 
+// 主函数
+async function output() {
+    if (!$searchText) {
+        return ['请输入搜索关键词'];
+    }
+ 
+    // 检查缓存
+    const cacheKey = SEARCH_QUERY;
+    if (
+        cache.data[cacheKey] && 
+        cache.timestamp[cacheKey] && 
+        Date.now() - cache.timestamp[cacheKey] < cache.ttl
+    ) {
+        return cache.data[cacheKey];
+    }
+ 
+    try {
+        // 获取搜索结果
+        const results = await getBingResults();
+        
+        if (results.length === 0) {
+            return ['暂无相关结果'];
+        }
+        
+        // 去重
+        const uniqueResults = removeDuplicates(results);
+        
+        // 格式化输出（只取前10条）
+        const formattedResults = uniqueResults
+            .slice(0, 10)
+            .map(formatResult);
+        
+        // 更新缓存
+        cache.data[cacheKey] = formattedResults;
+        cache.timestamp[cacheKey] = Date.now();
+        
+        return formattedResults;
+        
+    } catch (error) {
+        $log('获取搜索结果失败: ' + error);
+        return ['获取搜索结果失败，请稍后再试'];
+    }
+}
