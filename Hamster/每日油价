@@ -1,0 +1,23 @@
+// name: 每日油价.js
+// data: 2024-10-18
+// author: 叙白
+// desc: 自行设置你需要的省份
+
+async function output() {
+	// 省份名自行替换
+	return await getOilPrice("广东省");
+}
+
+async function getOilPrice(regionName) {
+	const url = "https://v2.api-m.com/api/oilPrice"
+	const {data} = await $http({url: url});
+	const jsonData = JSON.parse(data);
+	const region = jsonData.data.filter(item => item.regionName === regionName)[0];
+	const prices = [
+  `92汽油: ${region.n92}元`,
+  `95汽油: ${region.n95}元`,
+  `98汽油: ${region.n98}元`,
+  `0号柴油: ${region.n0}元`
+];
+  return prices;
+}
