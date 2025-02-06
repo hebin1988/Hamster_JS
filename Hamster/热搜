@@ -1,0 +1,20 @@
+// name: 热搜.js
+// date: 2024-10-17
+// author: 叙白
+// desc: 来自龙珠api
+
+async function output() {
+	// zhihu(知乎热榜)weibo(微博热搜) baidu(百度热点)history(历史上的今天)bilihot(哔哩哔哩热搜)biliall(哔哩哔哩全站日榜)douyin(抖音热搜)
+	// type后替换上面这些获取不同的热搜
+	const url = "https://www.hhlqilongzhu.cn/api/rs_juhe.php?type=douyin"
+	return getTrending(url);
+
+}
+
+async function getTrending(url) {
+	const {data} = await $http({url: url});
+	const dataList = JSON.parse(data).data;
+	
+	const titles = dataList.map(item => item.title);
+	return titles;
+}
