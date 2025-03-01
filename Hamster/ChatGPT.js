@@ -1,24 +1,30 @@
 // ChatGPT Integration
 async function chatgptDemo() {
+  // 确保有默认值，防止变量未定义
   const question = $searchText || $pasteboardContent || "这一个测试";
-  // const model = "gpt-4o";
-  // const model = "gpt-3.5-turbo";
   const model = "gpt-4o-mini";
-
-  // 我这里使用的 chatGPT 的转发服务，如果你用官网的 api
-  // 落格转发服务器: "https://api.chatai.beauty/v1/chat/completions"
-  // chatGPT服务: "https://api.openai.com/v1/chat/completions"
-  // GPT_APL_free服务："https:/api.chatanywhere.tech/v1/chat/completions"
   const url = "https://api.openai.com/v1/chat/completions";
+  
   try {
-    const { data } = await $http({
+    // 检查$http是否定义
+    if (!$http) {
+      throw new Error("$http is not defined");
+    }
+    
+    // 检查$token是否定义
+    if (!$token) {
+      throw new Error("API token is not defined");
+    }
+    
+    const response = await $http({
       url,
       method: "post",
       header: {
         "Content-Type": "application/json",
         Authorization: `Bearer ${$token}`,
       },
-      body: {
+      body: JSON.stringify({
+        model: model,  // 添加model参数
         messages: [
           {
             role: "system",
@@ -29,11 +35,34 @@ async function chatgptDemo() {
             content: question,
           },
         ],
-      },
+      }),
     });
-    return data;
+    
+    // 确保response和data存在
+    if (!response || !response.data) {
+      throw new Error("Invalid response from API");
+    }
+    
+    // 正确处理响应
+    if (typeof $output === 'function') {
+      $output(response.data);
+    }
+    
+    return response.data;
   } catch (error) {
-    $log(error);
-    return error;
+    // 确保$log存在
+    if (typeof $log === 'function') {
+      $log("Error in chatgptDemo:", error);
+    } else {
+      console.error("Error in chatgptDemo:", error);
+    }
+    return { error: error.message || "Unknown error occurred" };
   }
+}
+
+// 确保函数被正确导出或调用
+try {
+  module.exports = chatgptDemo;
+} catch (e) {
+  // 如果不是在Node环境中，忽略这个错误
 }
