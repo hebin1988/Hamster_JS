@@ -1,71 +1,55 @@
-// author: HB
-// date: 2024-10-03
-// name: GLM.js
-// 注意：请在脚本中的变量功能中添加 glm_key 变量，值为 GLM 的 API Key
-
-const BASE_URL = "https://open.bigmodel.cn/api/paas/v4/chat/completions";
-const DEFAULT_MODEL = "glm-4-flash";
-
-async function glmDemo(question = "你好", options = {}) {
-  const {
-    model = DEFAULT_MODEL,
-    isShortAnswer = question.endsWith('-')
-  } = options;
-
-  const systemPrompt = `你是一位AI助手，能够回答的专业以及准确${isShortAnswer ? "，现在请尽量用一句话回答我的问题" : ""}`;
-
-  const url = `${BASE_URL}/${model}:generateContent?key=${$glm_key}`;
-  const body = {
-    'system_instruction': {
-      'parts': {
-        'text': systemPrompt
-      }
+// 注意：请在脚本中的变量功能中添加 glm_key 变量，值为智谱 glm 的 API Key
+// Densuke修改自ChatGPT脚本
+// date:2024-10-01
+// name:glm.js
+async function glmDemo(){
+  // pasteboardContent 为内置变量,读取当前剪贴板字符内容
+ const question = $searchText || $pasteboardContent || "你好";
+  let prompt = "你是一位AI助手,能够回答的专业以及准确";
+  // 结尾加个-,返回简短的回答
+  if (question.slice(-1)==='-')
+    prompt+=",现在请尽量用一句话回答我的问题";
+  // const model "glm-4-plus";
+  const model = "glm-4-flash";//免费大模型
+const url ="https://open.bigmodel.cn/api/paas/v4/chat/completions";
+try {
+  const {data }=await $http({
+    url,
+    method:"post",
+    header:{
+      "Content-Type":"application/json",
+      Authorization:`Bearer $($glm_key)`,
     },
-    'contents': {
-      'parts': {
-        'text': question
-      }
+    body:{
+      messages:[
+        {
+          role:"system",
+          content: prompt,
+        },
+        {
+          role:"user",
+          content: question,
+        },
+      ],
+      model: model,
+      // 采用温度，控制输出的随机性，必须为正数值取值范围是;[0.0,1.0]
+      temperature: 0.95,
+    },
+    timeout: 30,
+  });
+  if (data)  {
+    const { choices } = JSON.parse(data);
+    if (choices && choices.length > 0) {
+      let { message } = choices[0];
+      return message && message.content;
     }
-  };
-
-  try {
-    const resp = await $http({
-      url,
-      method: "post",
-      header: {
-        "Content-Type": "application/json"
-      },
-      body: body,
-      timeout: 30,
-    });
-
-    const statusCode = resp.response.statusCode;
-    if (statusCode !== 200) {
-      throw new Error(`API请求失败: HTTP状态码 ${statusCode}`);
-    }
-
-    const parsedData = JSON.parse(resp.data);
-    if (!parsedData.candidates || parsedData.candidates.length === 0) {
-      throw new Error('API返回数据格式错误: 没有找到有效的回复');
-    }
-
-    return parsedData.candidates[0].content.parts[0].text || "";
-  } catch (error) {
-    let errorMessage = '未知错误';
-    if (error instanceof SyntaxError) {
-      errorMessage = 'API返回的数据无法解析为JSON';
-    } else if (error.message) {
-      errorMessage = error.message;
-    }
-    $log(`Gemini API 错误: ${errorMessage}`);
-    if (error.response) {
-      $log(`响应详情: ${JSON.stringify(error.response)}`);
-    }
-    return `抱歉，发生了错误: ${errorMessage}`;
   }
+  return "";
+}
 }
 
 async function output() {
-  const question = $searchText || $pasteboardContent || "你好-";
-  return await glmDemo(question);
+  const result = await glmDemo ();
+  return result;
 }
+      
